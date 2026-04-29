@@ -9,6 +9,8 @@ import { toast } from "sonner"
 
 export function CotacoesClient() {
   const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [quotes, setQuotes] = useState({
     latam: "26.50",
     smiles: "14.80",
@@ -17,9 +19,17 @@ export function CotacoesClient() {
 
   useEffect(() => {
     const saved = localStorage.getItem("agency_miles_quotes")
+    const savedMeta = localStorage.getItem("agency_miles_meta")
     if (saved) {
       try {
         setQuotes(JSON.parse(saved))
+      } catch (e) {}
+    }
+    if (savedMeta) {
+      try {
+        const meta = JSON.parse(savedMeta)
+        setSource(meta.source || null)
+        setLastUpdate(meta.lastUpdate || null)
       } catch (e) {}
     }
   }, [])
@@ -38,8 +48,12 @@ export function CotacoesClient() {
           smiles: String(data.smiles.toFixed(2)),
           azul: String(data.azul.toFixed(2))
         }
+        const now = new Date().toLocaleString("pt-BR")
         setQuotes(newQuotes)
+        setSource(data.source || "gemini_ai")
+        setLastUpdate(now)
         localStorage.setItem("agency_miles_quotes", JSON.stringify(newQuotes))
+        localStorage.setItem("agency_miles_meta", JSON.stringify({ source: data.source || "gemini_ai", lastUpdate: now }))
         toast.success("Cotação atualizada pela Inteligência Artificial com sucesso!")
       } else {
         throw new Error("Formato inválido retornado pela IA")
@@ -52,7 +66,11 @@ export function CotacoesClient() {
   }
 
   const handleSave = () => {
+    const now = new Date().toLocaleString("pt-BR")
+    setSource("manual")
+    setLastUpdate(now)
     localStorage.setItem("agency_miles_quotes", JSON.stringify(quotes))
+    localStorage.setItem("agency_miles_meta", JSON.stringify({ source: "manual", lastUpdate: now }))
     toast.success("Cotações manuais salvas com sucesso!")
   }
 
@@ -67,6 +85,20 @@ export function CotacoesClient() {
           <p className="text-white/60 mt-2 text-lg max-w-2xl">
             Defina o valor do milheiro do dia. Use a IA para buscar o preço de balcão atual ou preencha manualmente.
           </p>
+          {source && (
+            <div className="flex items-center gap-3 mt-2">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                source === "gemini_ai" 
+                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" 
+                  : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+              }`}>
+                {source === "gemini_ai" ? "🤖 Estimativa IA (Gemini)" : "✏️ Preenchimento Manual"}
+              </span>
+              {lastUpdate && (
+                <span className="text-white/40 text-xs">Atualizado: {lastUpdate}</span>
+              )}
+            </div>
+          )}
         </div>
         <Button 
           onClick={handleAIMatch} 
